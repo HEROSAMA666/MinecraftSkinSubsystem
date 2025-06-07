@@ -4,28 +4,31 @@
 #include "MinecraftSkinGetNodes.h"
 
 
-UMinecraftSkinGetNodes* UMinecraftSkinGetNodes::GetMinecraftPlayerUUID(const FString& MinecraftPlayerName)
+UMinecraftSkinGetNodes* UMinecraftSkinGetNodes::GetMinecraftPlayerUUID(const FString& MinecraftPlayerName, UObject* InWorldContextObject)
 {
 	UMinecraftSkinGetNodes* MinecraftSkinGetNodes = NewObject<UMinecraftSkinGetNodes>();
 
-	MinecraftSkinGetNodes->SendUUIDRequest(MinecraftPlayerName);
-
+	if(!MinecraftPlayerName.IsEmpty())
+	{
+		MinecraftSkinGetNodes->SendUUIDRequest(MinecraftPlayerName,InWorldContextObject);
+		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Sending Request"));
+	}// Successfully send requst
+	else
+	{
+		MinecraftSkinGetNodes->OnUUIDFailure.Broadcast(TEXT("None"), TEXT("Player name is empty!,Failed"));
+		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Request failed sent"));
+	}// Failed to send request
 	return MinecraftSkinGetNodes;
 }
 
-UMinecraftSkinGetNodes* UMinecraftSkinGetNodes::GetMinecraftPlayerInfo(const FString& MinecraftPlayerUUID)
-{
-	UMinecraftSkinGetNodes* MinecraftSkinGetNodes = NewObject<UMinecraftSkinGetNodes>();
 
-	MinecraftSkinGetNodes->SendPlayerInfoRequest(MinecraftPlayerUUID);
-
-	return MinecraftSkinGetNodes;
-}
-
-void UMinecraftSkinGetNodes::SendUUIDRequest(const FString& MinecraftPlayerName)
+void UMinecraftSkinGetNodes::SendUUIDRequest(const FString& MinecraftPlayerName, UObject* InWorldContextObject)
 {
 	AddToRoot(); // In case not got GC
-
+	if(InWorldContextObject)
+	{
+		WorldContextObject = InWorldContextObject; // Set the world context object
+	}
 	TSharedPtr<IHttpRequest> HttpRequest_UUID = FHttpModule::Get().CreateRequest();// Create a new HTTP request
 
 	HttpRequest_UUID->SetURL(FString::Printf(TEXT("https://api.mojang.com/users/profiles/minecraft/%s"),*MinecraftPlayerName));
@@ -36,40 +39,36 @@ void UMinecraftSkinGetNodes::SendUUIDRequest(const FString& MinecraftPlayerName)
 	HttpRequest_UUID->ProcessRequest();
 }
 
-void UMinecraftSkinGetNodes::SendPlayerInfoRequest(const FString& MinecraftPlayerUUID)
-{
-	
-}
 
 void UMinecraftSkinGetNodes::OnUUIDRequestComplete(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
 {
-	if(bWasSuccessful && Response)
+	if(bWasSuccessful && Response.IsValid())
 	{
 		FString JsonBody = Response->GetContentAsString(); // Get the response body as a string
 
 		TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 		TSharedRef< TJsonReader<> > JsonReader = TJsonReaderFactory<>::Create(JsonBody);
 
+		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Response Success!"));
 		if(FJsonSerializer::Deserialize(JsonReader,JsonObject))
 		{
-			//UMinecraftSkinSubsystem* MinecraftSkinSubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UMinecraftSkinSubsystem>();
-			//if(MinecraftSkinSubsystem)
-			//{
-			//	MinecraftSkinSubsystem->LocalMinecraftPlayerInfo.PlayerName = JsonObject->GetStringField("name"); // Save name to local player name form subsystem
-			//	MinecraftSkinSubsystem->LocalMinecraftPlayerInfo.MinecraftPlayerUUID = JsonObject->GetStringField("id"); // Save UUID to local player UUID form subsystem
+			//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Deserialize success"));
+			UMinecraftSkinSubsystem* MinecraftSkinSubsystem = WorldContextObject->GetWorld()->GetGameInstance()->GetSubsystem<UMinecraftSkinSubsystem>();
+			if(MinecraftSkinSubsystem)
+			{
+				//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Get UUID Success!"));
 
-			//	OnUUIDSuccess.Broadcast(MinecraftSkinSubsystem->LocalMinecraftPlayerInfo.MinecraftPlayerUUID);
-			//}
-			OnUUIDSuccess.Broadcast(JsonObject->GetStringField("id")); // Get UUID from JsonObject and broadcast it
+				MinecraftSkinSubsystem->LocalMinecraftPlayerInfo.PlayerName = JsonObject->GetStringField(TEXT("name")); // Save name to local player name form subsystem
+				MinecraftSkinSubsystem->LocalMinecraftPlayerInfo.MinecraftPlayerUUID = JsonObject->GetStringField(TEXT("id")); // Save UUID to local player UUID form subsystem
+
+				OnUUIDSuccess.Broadcast(MinecraftSkinSubsystem->LocalMinecraftPlayerInfo.MinecraftPlayerUUID, TEXT("UUID Got!")); // Broadcast the UUID
+			}
 		}
 	}
 	else
 	{
-		OnUUIDFailure.Broadcast(TEXT("Error or empty"));
-	}
-	//RemoveFromRoot();
+		OnUUIDFailure.Broadcast(TEXT("None"), TEXT("Http request failed or response is not valid"));
+	} // Failed to get UUID
+	RemoveFromRoot(); // Clean in next GC
 }
 
-void UMinecraftSkinGetNodes::OnPlayerInfoRequestComplete(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
-{
-}

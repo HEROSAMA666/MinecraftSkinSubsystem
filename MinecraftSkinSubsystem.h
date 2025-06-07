@@ -37,10 +37,20 @@ class UNMINECRAFT_API UMinecraftSkinSubsystem : public UGameInstanceSubsystem
 
 public:
 	// Fucntions
-	UFUNCTION(BlueprintCallable, Category = "MinecraftSkinSubsystem")
-	FString GetPlayerUUID(const FString MinecraftPlayerName);
 
-	void OnGetPlayerUUIDComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+	/*
+	* Remember to add .format at the end of the filename, like _heroo.png
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MinecraftSkinSubsystem")
+	bool SaveSkinImage_RenderTarget(UTextureRenderTarget2D* RenderTargetToSave,const FString& FileDestination,const FString& FileName);
+
+	/*
+	* If you have the skin png file in path : YourProject/Saved ,this function will return the 
+	* If there is no such file then it will return false
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MinecraftSkinSubsystem")
+	UTexture2D* TryGetMinecraftSkinFromName(const FString PlayerName);
+
 	// UUID part
 
 
@@ -48,6 +58,7 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "MinecraftSkinSubsystem")
 	FMinecraftPlayerInfo LocalMinecraftPlayerInfo;
+
 };
 
 

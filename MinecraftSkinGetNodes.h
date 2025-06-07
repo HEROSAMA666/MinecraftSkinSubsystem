@@ -12,8 +12,7 @@
  */
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FUUIDHttpResponseDelegate ,FString ,MinecraftPlayerUUID);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPlayerInfoHttpResponseDelegate, FString, MinecraftPlayerInfo_Json);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FUUIDHttpResponseDelegate, FString, MinecraftPlayerUUID, FString, Result);
 
 UCLASS(meta = (HideThen=true))
 class UNMINECRAFT_API UMinecraftSkinGetNodes : public UBlueprintAsyncActionBase
@@ -25,21 +24,13 @@ public:
 	// Functions
 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
-	static UMinecraftSkinGetNodes* GetMinecraftPlayerUUID(const FString& MinecraftPlayerName);
+	static UMinecraftSkinGetNodes* GetMinecraftPlayerUUID(const FString& MinecraftPlayerName, UObject* InWorldContextObject);
 
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
-	static UMinecraftSkinGetNodes* GetMinecraftPlayerInfo(const FString& MinecraftPlayerUUID);
-
-	void SendUUIDRequest(const FString& MinecraftPlayerName);
-
-	void SendPlayerInfoRequest(const FString& MinecraftPlayerUUID);
+	void SendUUIDRequest(const FString& MinecraftPlayerName, UObject* InWorldContextObject);
 
 	void OnUUIDRequestComplete(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 
-	void OnPlayerInfoRequestComplete(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
-
-
-	// Delegates
+	// Delegates (Out pins)
 
 	UPROPERTY(BlueprintAssignable)
 	FUUIDHttpResponseDelegate OnUUIDSuccess;
@@ -47,9 +38,7 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FUUIDHttpResponseDelegate OnUUIDFailure;
 
-	UPROPERTY(BlueprintAssignable)
-	FPlayerInfoHttpResponseDelegate OnPlayerInfoSuccess;
+	/* Better be an actor from current world */
+	UObject* WorldContextObject = nullptr; // Use to acquire the current world context
 
-	UPROPERTY(BlueprintAssignable)
-	FPlayerInfoHttpResponseDelegate OnPlayerInfoFailure;
 };
